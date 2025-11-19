@@ -3,62 +3,536 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Service Temporairement Indisponible</title>
-    <!-- Chargement du CDN de Tailwind CSS pour un style moderne et responsive -->
+    <title>Visionary</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Configuration de la police Inter (standard Tailwind) */
-        html { font-family: 'Inter', sans-serif; }
-    </style>
-    <!-- Utilisation de Lucide Icons pour un symbole visuel -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-</head>
-<!-- Thème sombre adapté au streaming (fond noir/gris foncé) -->
-<body class="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center py-10 px-4">
-
-    <main class="w-full max-w-2xl">
-        <!-- Conteneur central d'alerte avec effet "cinéma" et bordure d'accentuation -->
-        <div class="bg-gray-800 p-8 md:p-12 rounded-2xl shadow-2xl border-2 border-indigo-600/50 text-center">
-
-            <!-- Icône de maintenance (clé à molette) animée -->
-            <div class="mb-6">
-                <i data-lucide="wrench" class="w-16 h-16 text-indigo-400 mx-auto animate-pulse"></i>
-            </div>
-
-            <h1 class="text-4xl md:text-5xl font-extrabold text-indigo-400 mb-4">
-                Service Temporairement en Pause
-            </h1>
-            
-            <h2 class="text-2xl font-semibold text-gray-100 mb-6">
-                Mise à Jour Technique Cruciale
-            </h2>
-
-            <p class="text-lg text-gray-300 leading-relaxed mb-8">
-                Notre plateforme de streaming est actuellement indisponible. Nous procédons à un **changement d'hébergeur vidéo** majeur. Cette migration est essentielle pour vous offrir une qualité de diffusion et une stabilité optimales, notamment en **éliminant les publicités intrusives** qui perturbaient votre expérience.
-            </p>
-            
-            <div class="inline-block">
-                <p class="text-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition duration-300 p-3 rounded-lg shadow-xl">
-                    Retour le Plus Vite Possible !
-                </p>
-            </div>
-            
-            <p class="text-md text-gray-400 mt-6">
-                Nous vous remercions de votre compréhension. Toute l'équipe vous présente ses excuses pour la gêne occasionnée et travaille sans relâche à la finalisation de cette transition.
-            </p>
-            
-        </div>
-        
-        <footer class="mt-8 text-center text-gray-500">
-            <p class="text-sm">Une meilleure expérience de streaming arrive bientôt.</p>
-        </footer>
-
-    </main>
-    
-    <!-- Initialisation des icônes Lucide -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
-        lucide.createIcons();
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-dark': '#0f172a',
+                        'secondary-dark': '#1e293b',
+                        'accent': '#3b82f6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
     </script>
+    <style>
+        body {
+            background-color: #0f172a; 
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .poster-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+        .poster-card.playable:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+        }
+        .poster-card.unplayable {
+            opacity: 0.6;
+            filter: grayscale(80%);
+            cursor: default;
+        }
+        .poster-image {
+            aspect-ratio: 2 / 3;
+            object-fit: cover;
+        }
+        .modal-container {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
+    </style>
+</head>
+<body class="font-sans">
 
+    <header class="bg-secondary-dark shadow-lg sticky top-0 z-10 p-4 md:p-6">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <h1 class="text-3xl font-bold text-accent tracking-wider">Visionary</h1>
+
+            <div class="flex flex-wrap justify-center gap-3 w-full md:w-auto">
+                <div class="relative w-full sm:w-64">
+                    <input type="text" id="searchInput" placeholder="Rechercher par titre..." class="w-full p-2 pl-10 rounded-lg bg-primary-dark border border-secondary-dark focus:border-accent focus:ring-1 focus:ring-accent text-sm transition" oninput="filterMovies(this.value)">
+                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+
+                <button id="toggleViewBtn" class="p-2 rounded-lg bg-accent hover:bg-blue-600 transition text-sm font-semibold flex items-center shadow-md" onclick="toggleViewMode()">
+                    <svg id="viewIcon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    <span>Mode Grille</span>
+                </button>
+
+                <select id="autoReloadSelect" class="p-2 rounded-lg bg-primary-dark border border-secondary-dark focus:border-accent focus:ring-1 focus:ring-accent text-sm transition" onchange="setupAutoReload()">
+                    <option value="0">Rechargement désactivé</option>
+                    <option value="30000">Recharger toutes les 30s</option>
+                    <option value="60000">Recharger toutes les 60s</option>
+                    <option value="300000">Recharger toutes les 5m</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6">
+        <div id="messageArea" class="py-4">
+            <div id="loadingMessage" class="flex items-center text-accent">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Chargement des films depuis films.txt...
+            </div>
+        </div>
+
+        <div id="moviesContainer" class="min-h-[50vh]"></div>
+    </main>
+
+    <div id="playerModal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden modal-container p-4 overflow-y-auto" onclick="closeModal(event)">
+        <div class="relative max-w-4xl mx-auto bg-secondary-dark rounded-xl shadow-2xl p-4 md:p-8 modal-content" onclick="event.stopPropagation()">
+            <button class="absolute top-4 right-4 text-gray-300 hover:text-accent transition" onclick="closeModal()">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <h2 id="modalTitle" class="text-3xl font-bold text-white mb-4 pr-10">Titre du Film</h2>
+
+            <div class="aspect-video bg-primary-dark rounded-lg overflow-hidden mb-6">
+                <iframe id="videoPlayer" class="w-full h-full" src=""
+                        allow="autoplay; fullscreen; encrypted-media" 
+                        frameborder="0" 
+                        referrerpolicy="no-referrer" 
+                        allowfullscreen></iframe>
+            </div>
+
+            <p id="modalDescription" class="text-gray-300 mb-4"></p>
+
+            <a id="modalExternalLink" href="#" target="_blank" class="inline-flex items-center text-accent hover:text-blue-400 transition font-semibold text-sm">
+                Ouvrir le lecteur dans un nouvel onglet
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const TMDB_API_KEY = 'cc8c196133c6efa48fd2edc1e20967a7';
+        const TMDB_BASE_URL = 'https://api.themoviedb.org/3/movie/';
+        const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/';
+        const TMDB_LANGUAGE = 'fr-FR';
+
+        let moviesData = [];
+        let currentViewMode = 'grid';
+        let reloadIntervalId = null;
+
+        const moviesContainer = document.getElementById('moviesContainer');
+        const messageArea = document.getElementById('messageArea');
+        const searchInput = document.getElementById('searchInput');
+        const toggleViewBtn = document.getElementById('toggleViewBtn');
+        const viewIcon = document.getElementById('viewIcon');
+        const playerModal = document.getElementById('playerModal');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDescription = document.getElementById('modalDescription');
+        const modalExternalLink = document.getElementById('modalExternalLink');
+
+        function sanitizeUrl(str) {
+            if (!str) return '';
+            return str.replace(/[\u200B-\u200F\uFEFF\u00AD\t\n\r]/g, '').trim();
+        }
+
+        function extractEmbedUrl(url) {
+            if (!url || typeof url !== 'string' || url === '') {
+                return null;
+            }
+
+            if (url.includes('zupload.cc/embed/')) {
+                const match = url.match(/https:\/\/zupload\.cc\/embed\/([a-zA-Z0-9_-]+)/);
+                if (match) {
+                    return `https://zupload.cc/embed/${match[1]}`;
+                }
+            }
+
+            if (url.includes('uqload.cx/embed-')) {
+                const match = url.match(/https:\/\/uqload\.cx\/embed-([a-zA-Z0-9_-]+)\.html/);
+                if (match) {
+                    return `https://uqload.cx/embed-${match[1]}.html`;
+                }
+            }
+
+            console.warn(`Format d'URL non reconnu: ${url}`);
+            return null;
+        }
+
+        function displayMessage(message, type = 'info') {
+            let bgColor, textColor, icon;
+            messageArea.classList.remove('hidden');
+
+            switch (type) {
+                case 'loading':
+                    bgColor = 'bg-secondary-dark';
+                    textColor = 'text-accent';
+                    icon = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+                    break;
+                case 'error':
+                    bgColor = 'bg-red-900/50';
+                    textColor = 'text-red-400';
+                    icon = '<svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                    break;
+                case 'success':
+                    bgColor = 'bg-green-900/50';
+                    textColor = 'text-green-400';
+                    icon = '<svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                    break;
+                default:
+                    bgColor = 'bg-secondary-dark';
+                    textColor = 'text-gray-300';
+                    icon = '';
+            }
+
+            messageArea.innerHTML = `
+                <div class="${bgColor} ${textColor} p-4 rounded-xl shadow-lg flex items-center mb-4 transition duration-500 fade-in">
+                    ${icon}
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function displayTempMessage(message, type, duration = 3000) {
+            displayMessage(message, type);
+            setTimeout(() => { 
+                messageArea.innerHTML = ''; 
+                messageArea.classList.add('hidden');
+            }, duration);
+        }
+
+        async function loadMovieIds() {
+            try {
+                const response = await fetch('films.txt', { cache: 'no-cache' });
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}. Vérifiez le nom du fichier.`);
+                }
+                const text = await response.text();
+                
+                const lines = text.split('\n');
+                const rawMovies = [];
+
+                lines.forEach(line => {
+                    const cleanLine = line.replace(/^\uFEFF/, '').trim().replace(/[\r\n]/g, '');
+                    
+                    if (cleanLine === '' || cleanLine.startsWith('#')) {
+                        return;
+                    }
+
+                    const parts = cleanLine.split(';').map(p => p.trim());
+                    
+                    if (parts.length >= 1 && parts[0] !== '') {
+                        const tmdbId = parts[0];
+                        const videoUrls = parts.slice(1).map(url => sanitizeUrl(url)).filter(url => url !== '');
+                        
+                        if (videoUrls.length > 0) {
+                            console.log(`ID ${tmdbId} chargé avec ${videoUrls.length} URL(s)`);
+                        } else {
+                            console.warn(`ID ${tmdbId} sans URL de streaming`);
+                        }
+
+                        rawMovies.push({ tmdbId, videoUrls });
+                    }
+                });
+                
+                return rawMovies;
+
+            } catch (error) {
+                console.error("Erreur lors du chargement de films.txt:", error);
+                displayMessage(`Impossible de charger films.txt. Détail: ${error.message}`, 'error');
+                return [];
+            }
+        }
+
+        async function fetchTmdbData(tmdbId) {
+            const url = `${TMDB_BASE_URL}${tmdbId}?api_key=${TMDB_API_KEY}&language=${TMDB_LANGUAGE}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Film TMDB ID ${tmdbId} introuvable (Status: ${response.status})`);
+                }
+                const data = await response.json();
+
+                return {
+                    id: tmdbId,
+                    title: data.title,
+                    overview: data.overview || 'Description non disponible en français.',
+                    posterPath: data.poster_path,
+                    releaseYear: data.release_date ? new Date(data.release_date).getFullYear() : 'N/A',
+                    voteAverage: data.vote_average ? data.vote_average.toFixed(1) : 'N/A',
+                };
+            } catch (error) {
+                console.warn(error.message);
+                return null;
+            }
+        }
+
+        async function loadAllMovies() {
+            moviesContainer.innerHTML = '';
+            displayMessage("Chargement des films depuis films.txt...", 'loading');
+            
+            const rawMovies = await loadMovieIds();
+
+            if (rawMovies.length === 0 && messageArea.innerHTML.includes('Impossible de charger')) {
+                return;
+            }
+
+            const tmdbPromises = rawMovies.map(async (rawMovie) => {
+                const tmdbData = await fetchTmdbData(rawMovie.tmdbId);
+                if (tmdbData) {
+                    return { ...tmdbData, videoUrls: rawMovie.videoUrls };
+                }
+                return null;
+            });
+
+            const results = await Promise.all(tmdbPromises);
+            moviesData = results.filter(movie => movie !== null);
+
+            messageArea.innerHTML = '';
+
+            if (moviesData.length > 0) {
+                moviesData.sort((a, b) => b.voteAverage - a.voteAverage);
+                renderMovies(moviesData);
+                displayTempMessage(`Chargement terminé : ${moviesData.length} films affichés.`, 'success');
+            } else if (rawMovies.length > 0) {
+                displayMessage(`Aucun film TMDB n'a pu être chargé. ${rawMovies.length} ID TMDB(s) non trouvés ou erreur API.`, 'error');
+            } else {
+                displayMessage("Le fichier films.txt a été trouvé, mais ne contient aucune entrée de film valide.", 'error');
+            }
+        }
+
+        function renderGridMovie(movie) {
+            const posterUrl = movie.posterPath 
+                ? `${TMDB_IMAGE_BASE_URL}w500${movie.posterPath}` 
+                : 'https://placehold.co/500x750/1e293b/f8fafc?text=Affiche+Manquante';
+            
+            const url0 = movie.videoUrls[0] || '';
+            const url1 = movie.videoUrls[1] || '';
+            
+            const isPlayable = !!url0 || !!url1;
+            const playableClass = isPlayable ? 'playable hover:ring-2 hover:ring-accent' : 'unplayable';
+            const clickHandler = isPlayable ? 'openModal(this)' : 'displayTempMessage(\'URL de streaming manquante. Film non-jouable.\', \'error\', 2000)';
+
+            return `
+                <div class="poster-card rounded-xl overflow-hidden bg-secondary-dark ${playableClass} fade-in" 
+                     style="animation-delay: ${Math.random() * 0.2}s;"
+                     onclick="${clickHandler}"
+                     data-title="${movie.title}"
+                     data-description="${movie.overview}"
+                     data-url-0="${url0}"
+                     data-url-1="${url1}">
+                    
+                    ${!isPlayable ? '<div class="absolute top-0 left-0 bg-red-700/80 text-white text-xs font-bold p-1 rounded-br-lg z-10">URL MANQUANTE</div>' : ''}
+                    
+                    <img src="${posterUrl}" alt="Affiche de ${movie.title}" class="poster-image w-full"
+                        onerror="this.onerror=null;this.src='https://placehold.co/500x750/1e293b/f8fafc?text=Affiche+Manquante';">
+                    
+                    <div class="p-3">
+                        <h3 class="text-white font-semibold truncate">${movie.title}</h3>
+                        <p class="text-xs text-gray-400">(${movie.releaseYear}) - ${movie.voteAverage}/10</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderListMovie(movie) {
+            const posterUrl = movie.posterPath 
+                ? `${TMDB_IMAGE_BASE_URL}w200${movie.posterPath}` 
+                : 'https://placehold.co/100x150/1e293b/f8fafc?text=N/A';
+            
+            const url0 = movie.videoUrls[0] || '';
+            const url1 = movie.videoUrls[1] || '';
+            
+            const isPlayable = !!url0 || !!url1;
+            const playableClass = isPlayable ? 'hover:bg-slate-700' : 'unplayable opacity-60';
+            const clickHandler = isPlayable ? 'openModal(this)' : 'displayTempMessage(\'URL de streaming manquante. Film non-jouable.\', \'error\', 2000)';
+
+            return `
+                <div class="flex bg-secondary-dark rounded-xl shadow-lg mb-4 p-4 items-start transition fade-in ${playableClass}" 
+                     style="animation-delay: ${Math.random() * 0.1}s;">
+                    
+                    <img src="${posterUrl}" alt="Affiche de ${movie.title}" class="w-16 h-24 object-cover rounded-md flex-shrink-0 mr-4"
+                         onerror="this.onerror=null;this.src='https://placehold.co/100x150/1e293b/f8fafc?text=N/A';">
+                    
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-white mb-1">${movie.title} <span class="text-sm font-normal text-gray-400">(${movie.releaseYear})</span></h3>
+                        <p class="text-sm text-gray-300 mb-2 line-clamp-2">${movie.overview}</p>
+                        
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm font-medium text-amber-400">⭐ ${movie.voteAverage}/10</p>
+                            <button class="px-4 py-2 rounded-lg text-white font-semibold transition shadow-md text-sm
+                                    ${isPlayable ? 'bg-accent hover:bg-blue-600' : 'bg-gray-500 cursor-not-allowed'}"
+                                    onclick="${clickHandler}"
+                                    data-title="${movie.title}"
+                                    data-description="${movie.overview}"
+                                    data-url-0="${url0}"
+                                    data-url-1="${url1}"
+                                    ${!isPlayable ? 'disabled' : ''}>
+                                ${isPlayable ? 'Regarder' : 'Non disponible'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMovies(movies) {
+            moviesContainer.innerHTML = '';
+            
+            if (movies.length === 0) {
+                moviesContainer.innerHTML = `
+                    <p class="text-center text-gray-400 text-lg mt-10">Aucun film ne correspond à votre recherche.</p>
+                `;
+                return;
+            }
+
+            if (currentViewMode === 'grid') {
+                moviesContainer.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6';
+                movies.forEach(movie => {
+                    moviesContainer.innerHTML += renderGridMovie(movie);
+                });
+            } else {
+                moviesContainer.className = 'flex flex-col space-y-4';
+                movies.forEach(movie => {
+                    moviesContainer.innerHTML += renderListMovie(movie);
+                });
+            }
+        }
+
+        function toggleViewMode() {
+            currentViewMode = currentViewMode === 'grid' ? 'list' : 'grid';
+            
+            const pathGrid = 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z';
+            const pathList = 'M4 6h16M4 10h16M4 14h16M4 18h16';
+
+            if (currentViewMode === 'grid') {
+                viewIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${pathGrid}"></path>`;
+                toggleViewBtn.querySelector('span').textContent = 'Mode Grille';
+            } else {
+                viewIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${pathList}"></path>`;
+                toggleViewBtn.querySelector('span').textContent = 'Mode Liste';
+            }
+            
+            renderMovies(moviesData);
+        }
+
+        function filterMovies(query) {
+            const lowerCaseQuery = query.toLowerCase().trim();
+            const filteredMovies = moviesData.filter(movie => 
+                movie.title.toLowerCase().includes(lowerCaseQuery)
+            );
+            renderMovies(filteredMovies);
+        }
+
+        function openModal(element) {
+            const title = element.getAttribute('data-title');
+            const originalDescription = element.getAttribute('data-description');
+            
+            const videoUrl0 = element.getAttribute('data-url-0') || '';
+            const videoUrl1 = element.getAttribute('data-url-1') || '';
+            
+            console.log("--- DÉBOGAGE openModal ---");
+            console.log(`URL 0: "${videoUrl0}"`);
+            console.log(`URL 1: "${videoUrl1}"`);
+
+            let finalEmbedUrl = extractEmbedUrl(videoUrl0);
+
+            if (!finalEmbedUrl && videoUrl1) {
+                console.log(`Tentative avec URL secondaire: ${videoUrl1}`);
+                finalEmbedUrl = extractEmbedUrl(videoUrl1);
+            }
+
+            modalTitle.textContent = title;
+            
+            let displayDescription = originalDescription;
+            let showExternalLink = false;
+            
+            if (finalEmbedUrl) {
+                console.log(`Chargement iframe: ${finalEmbedUrl}`);
+                
+                videoPlayer.src = finalEmbedUrl;
+                modalExternalLink.href = finalEmbedUrl;
+                showExternalLink = true;
+            } else {
+                videoPlayer.src = '';
+                
+                console.error(`ÉCHEC: Impossible de générer l'URL d'embed pour "${title}"`);
+                console.log(`URLs reçues: [0] = "${videoUrl0}", [1] = "${videoUrl1}"`);
+
+                displayDescription = originalDescription + "\n\n🚨 ATTENTION: Aucune URL de streaming valide (Zupload ou Uqload) détectée. Vérifiez le fichier films.txt.";
+                showExternalLink = false;
+            }
+            
+            modalDescription.textContent = displayDescription;
+
+            if (showExternalLink) {
+                modalExternalLink.classList.remove('hidden');
+            } else {
+                modalExternalLink.classList.add('hidden');
+            }
+
+            playerModal.classList.remove('hidden');
+        }
+
+        function closeModal(event) {
+            if (event && event.target.id !== 'playerModal') return;
+
+            videoPlayer.src = '';
+            playerModal.classList.add('hidden');
+        }
+
+        function setupAutoReload() {
+            if (reloadIntervalId) {
+                clearInterval(reloadIntervalId);
+                reloadIntervalId = null;
+            }
+
+            const intervalMs = parseInt(document.getElementById('autoReloadSelect').value, 10);
+
+            if (intervalMs > 0) {
+                reloadIntervalId = setInterval(() => {
+                    console.log(`Rechargement automatique (${intervalMs / 1000}s)...`);
+                    loadAllMovies();
+                }, intervalMs);
+                displayTempMessage(`Rechargement automatique activé : toutes les ${intervalMs / 1000} secondes.`, 'info');
+            } else {
+                displayTempMessage('Rechargement automatique désactivé.', 'info');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAllMovies);
+    </script>
 </body>
 </html>
