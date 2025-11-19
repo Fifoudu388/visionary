@@ -20,5 +20,5 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           port: ${{ secrets.FTP_PORT }}       # <-- ton port ici
-          server-dir: /htdocs/               # <-- ton dossier ici
+          server-dir: /alpha-visionary.xo.je/htdocs               # <-- ton dossier ici
           local-dir: ./                      # <-- envoie tout le repo
