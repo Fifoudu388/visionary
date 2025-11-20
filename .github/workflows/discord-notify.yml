@@ -1,0 +1,38 @@
+name: Discord Commit Notification
+
+on:
+  push:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Envoie un message stylé sur Discord
+        run: |
+          COMMITS=$(jq -c '.commits[]' $GITHUB_EVENT_PATH)
+          for COMMIT in $COMMITS; do
+            MESSAGE=$(echo $COMMIT | jq -r '.message')
+            AUTHOR=$(echo $COMMIT | jq -r '.author.name')
+            URL=$(echo $COMMIT | jq -r '.url')
+            SHA=$(echo $COMMIT | jq -r '.id' | cut -c1-7)
+
+            curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"📌 Nouveau commit sur ${{ github.repository }}\",
+                \"description\": \"**Message du commit :**\n$message\",
+                \"color\": 3447003,
+                \"fields\": [
+                  {\"name\": \"Commit\", \"value\": \"[$SHA]($URL)\", \"inline\": true},
+                  {\"name\": \"Branche\", \"value\": \"${{ github.ref_name }}\", \"inline\": true},
+                  {\"name\": \"Auteur\", \"value\": \"$AUTHOR\", \"inline\": true}
+                ],
+                \"footer\": {
+                  \"text\": \"GitHub Actions • Push détecté\"
+                }
+              }]
+            }" \
+            ${{ secrets.DISCORD_WEBHOOK }}
+          done
