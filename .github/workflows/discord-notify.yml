@@ -13,9 +13,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Récupère tout l'historique pour le nombre total de commits
 
-      # Préparation des données
+      # 1. Préparation des données : commits, type, version, timestamp, etc.
       - name: Prepare Data
         id: prep
         run: |
@@ -25,79 +25,92 @@ jobs:
           REPO="${{ github.repository }}"
           BRANCH="${{ github.ref_name }}"
           ROLE_ID="1441339522473529467"  # Remplace par ton rôle Discord
+
           TS=$(date +%s)
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           VERSION="v-$SHORT_SHA"
 
-          # Type de commit
+          # Extraction du type de commit à partir du premier commit du push
           COMMIT_MSG=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[0].message')
           COMMIT_TYPE=$(echo "$COMMIT_MSG" | grep -Eo '^(feat|fix|docs|style|refactor|perf|test|chore)' || echo "update")
 
-          # Couleur et emoji selon le type
+          # Couleur en fonction du type de commit
           case "$COMMIT_TYPE" in
-            feat) COLOR=3066993; EMOJI="🚀";;
-            fix) COLOR=15158332; EMOJI="🐛";;
-            docs) COLOR=10181046; EMOJI="📝";;
-            *) COLOR=3447003; EMOJI="📦";;
+            feat) COLOR=3066993 ;;    # Vert
+            fix) COLOR=15158332 ;;    # Rouge
+            docs) COLOR=10181046 ;;   # Bleu clair
+            *) COLOR=3447003 ;;       # Gris
           esac
 
-          # Auteur du commit
-          COMMIT_AUTHOR_NAME=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[0].author.name')
-          COMMIT_AUTHOR_URL="https://github.com/${{ github.event.commits[0].author.username }}"
+          # Nombre total de commits du dépôt
+          TOTAL_COMMITS=$(git rev-list --count HEAD)
 
-          # Liste des commits
+          # Liste formatée de TOUS les commits du push
           COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[] | "• **\(.id[0:7])** — \(.message)"' | paste -sd "\\n" -)
 
-          # Lien vers la PR (si c'est une PR)
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_LINK="[Pull Request #${{ github.event.number }}](https://github.com/${{ github.repository }}/pull/${{ github.event.number }})"
-          else
-            PR_LINK="Aucune"
-          fi
-
+          # Sortie des variables pour les étapes suivantes
           echo "repo=$REPO" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
           echo "color=$COLOR" >> $GITHUB_OUTPUT
-          echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
           echo "commits<<EOF" >> $GITHUB_OUTPUT
           echo "$COMMITS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          echo "author_name=$COMMIT_AUTHOR_NAME" >> $GITHUB_OUTPUT
-          echo "author_url=$COMMIT_AUTHOR_URL" >> $GITHUB_OUTPUT
-          echo "pr_link=$PR_LINK" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL_COMMITS" >> $GITHUB_OUTPUT
+          echo "type=$COMMIT_TYPE" >> $GITHUB_OUTPUT
           echo "short=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "timestamp=$TS" >> $GITHUB_OUTPUT
           echo "role=$ROLE_ID" >> $GITHUB_OUTPUT
 
-      # Envoi de la notification Discord
+      # 2. Génération automatique du CHANGELOG.md
+      - name: Generate Changelog
+        run: |
+          cat > CHANGELOG.md <<EOF
+          ## Version ${{ steps.prep.outputs.version }}
+          Date : <t:${{ steps.prep.outputs.timestamp }}:f>
+
+          ### Commits inclus :
+          ${{ steps.prep.outputs.commits }}
+          EOF
+
+      # 3. Message personnalisé si la branche est main
+      - name: Custom Message for Main
+        if: ${{ steps.prep.outputs.branch == 'main' }}
+        run: |
+          echo "🚀 Déploiement en cours sur la branche *main* !" >> $GITHUB_STEP_SUMMARY
+
+      # 4. Envoi de la notification Discord (Push + PR)
       - name: Send Discord Message
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          AVATAR_URL: "https://avatars.githubusercontent.com/u/XXXXX?s=400"  # Remplace XXXXX
+          AVATAR_URL: "https://avatars.githubusercontent.com/u/XXXXX?s=400"  # Remplace XXXXX par l'ID de ton avatar ou logo
         run: |
           cat <<EOF > payload.json
           {
             "content": "<@&${{ steps.prep.outputs.role }}>",
             "embeds": [
               {
-                "title": "${{ steps.prep.outputs.emoji }} Nouvel événement sur ${{ steps.prep.outputs.repo }}",
+                "title": "📌 Nouvel événement GitHub sur ${{ steps.prep.outputs.repo }}",
                 "url": "https://github.com/${{ steps.prep.outputs.repo }}",
                 "color": ${{ steps.prep.outputs.color }},
                 "author": {
-                  "name": "${{ steps.prep.outputs.author_name }}",
-                  "url": "${{ steps.prep.outputs.author_url }}",
+                  "name": "${{ steps.prep.outputs.repo }}",
                   "icon_url": "$AVATAR_URL"
                 },
                 "fields": [
                   {
-                    "name": "Type",
+                    "name": "Type de commit",
                     "value": "\`${{ steps.prep.outputs.type }}\`",
                     "inline": true
                   },
                   {
                     "name": "Version",
                     "value": "\`${{ steps.prep.outputs.version }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Total commits",
+                    "value": "\`${{ steps.prep.outputs.total }}\`",
                     "inline": true
                   },
                   {
@@ -111,16 +124,12 @@ jobs:
                     "inline": true
                   },
                   {
-                    "name": "Pull Request",
-                    "value": "${{ steps.prep.outputs.pr_link }}"
-                  },
-                  {
                     "name": "Changelog",
                     "value": "${{ steps.prep.outputs.commits }}"
                   }
                 ],
                 "footer": {
-                  "text": "GitHub Actions • Aujourd’hui à $(date -u +"%H:%M")"
+                  "text": "GitHub Actions • Event | ${{ steps.prep.outputs.branch }} • Aujourd’hui à $(date -u +"%H:%M")"
                 },
                 "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
               }
@@ -128,6 +137,7 @@ jobs:
           }
           EOF
 
+          # Envoi du message via webhook Discord
           curl -H "Content-Type: application/json" \
                -X POST \
                -d @payload.json \
