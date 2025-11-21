@@ -83,30 +83,57 @@ jobs:
       - name: Send Discord Message
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          AVATAR_URL: "https://avatars.githubusercontent.com/u/XXXXX?s=400"  # Remplace XXXXX par l'ID de ton avatar ou logo
         run: |
-          TITLE="📌 Nouvel événement GitHub sur ${{ steps.prep.outputs.repo }}"
-          DESCRIPTION="**Type :** ${{ steps.prep.outputs.type }}
-          **Version :** ${{ steps.prep.outputs.version }}
-          **Total commits :** ${{ steps.prep.outputs.total }}
-
-          **Commits inclus :**
-          ${{ steps.prep.outputs.commits }}"
-
-          # Construction du payload pour l'embed Discord
           cat <<EOF > payload.json
           {
             "content": "<@&${{ steps.prep.outputs.role }}>",
-            "embeds": [{
-              "title": "$TITLE",
-              "description": "$DESCRIPTION",
-              "color": ${{ steps.prep.outputs.color }},
-              "fields": [
-                { "name": "Branche", "value": "${{ steps.prep.outputs.branch }}", "inline": true },
-                { "name": "SHA", "value": "${{ steps.prep.outputs.short }}", "inline": true }
-              ],
-              "footer": { "text": "GitHub Actions • Event" },
-              "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-            }]
+            "embeds": [
+              {
+                "title": "📌 Nouvel événement GitHub sur ${{ steps.prep.outputs.repo }}",
+                "url": "https://github.com/${{ steps.prep.outputs.repo }}",
+                "color": ${{ steps.prep.outputs.color }},
+                "author": {
+                  "name": "${{ steps.prep.outputs.repo }}",
+                  "icon_url": "$AVATAR_URL"
+                },
+                "fields": [
+                  {
+                    "name": "Type de commit",
+                    "value": "\`${{ steps.prep.outputs.type }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Version",
+                    "value": "\`${{ steps.prep.outputs.version }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Total commits",
+                    "value": "\`${{ steps.prep.outputs.total }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Branche",
+                    "value": "\`${{ steps.prep.outputs.branch }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "SHA",
+                    "value": "[\`${{ steps.prep.outputs.short }}\`](https://github.com/${{ steps.prep.outputs.repo }}/commit/${{ steps.prep.outputs.short }})",
+                    "inline": true
+                  },
+                  {
+                    "name": "Changelog",
+                    "value": "${{ steps.prep.outputs.commits }}"
+                  }
+                ],
+                "footer": {
+                  "text": "GitHub Actions • Event | ${{ steps.prep.outputs.branch }} • Aujourd’hui à $(date -u +"%H:%M")"
+                },
+                "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+              }
+            ]
           }
           EOF
 
