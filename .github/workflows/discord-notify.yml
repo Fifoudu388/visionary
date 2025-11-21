@@ -19,39 +19,33 @@ jobs:
       - name: Prepare Data
         id: prep
         run: |
-          # TOUTES LES DONNÉES IMPORTANTES
+          sudo apt-get update
+          sudo apt-get install jq -y
+
           REPO="${{ github.repository }}"
           BRANCH="${{ github.ref_name }}"
-          ROLE_ID="123456789012345678"    # <--- MET TON RÔLE ICI
+          ROLE_ID="123456789012345678" # Mets ton rôle
 
-          # Timestamp UNIX
           TS=$(date +%s)
-
-          # Version basée sur SHA court
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           VERSION="v-$SHORT_SHA"
 
-          # Type de commit basé sur le message (feat, fix, docs…)
-          COMMIT_TYPE=$(echo "${{ github.event.head_commit.message }}" | grep -Eo '^(feat|fix|docs|style|refactor|perf|test|chore)' || echo "update")
+          # type du commit basé sur le premier commit du push
+          COMMIT_MSG=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[0].message')
+          COMMIT_TYPE=$(echo "$COMMIT_MSG" | grep -Eo '^(feat|fix|docs|style|refactor|perf|test|chore)' || echo "update")
 
-          # Couleur selon type
           case "$COMMIT_TYPE" in
-            feat) COLOR=3066993 ;;     # vert
-            fix) COLOR=15158332 ;;     # rouge
-            docs) COLOR=10181046 ;;    # bleu
-            *) COLOR=3447003 ;;        # bleu par défaut
+            feat) COLOR=3066993 ;;
+            fix) COLOR=15158332 ;;
+            docs) COLOR=10181046 ;;
+            *) COLOR=3447003 ;;
           esac
 
-          # Compte total de commits
+          # Nombre total de commits du repo
           TOTAL_COMMITS=$(git rev-list --count HEAD)
 
-          # Construire la liste des commits du push
-          COMMITS=""
-          for c in $(echo "${{ github.event.commits[*].id }}"); do
-            MSG=$(jq -r ".commits[] | select(.id==\"$c\").message" <<< "${{ toJson(github.event) }}")
-            SHORT=$(echo "$c" | cut -c1-7)
-            COMMITS="$COMMITS\n• **$SHORT** — $MSG"
-          done
+          # Liste propre de TOUS les commits du push
+          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[] | "• **\(.id[0:7])** — \(.message)"' | sed ':a;N;$!ba;s/\n/\\n/g')
 
           echo "repo=$REPO" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
