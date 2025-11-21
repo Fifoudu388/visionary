@@ -24,7 +24,7 @@ jobs:
 
           REPO="${{ github.repository }}"
           BRANCH="${{ github.ref_name }}"
-          ROLE_ID="123456789012345678"  # Remplace par ton rôle Discord
+          ROLE_ID="1441339522473529467"  # Remplace par ton rôle Discord
           TS=$(date +%s)
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           VERSION="v-$SHORT_SHA"
