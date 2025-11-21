@@ -1,0 +1,144 @@
+name: Discord Notifications
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Récupération du dépôt
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Récupère tout l'historique pour le nombre total de commits
+
+      # 1. Préparation des données : commits, type, version, timestamp, etc.
+      - name: Prepare Data
+        id: prep
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.ref_name }}"
+          ROLE_ID="1441339522473529467"  # Remplace par ton rôle Discord
+
+          TS=$(date +%s)
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          VERSION="v-$SHORT_SHA"
+
+          # Extraction du type de commit à partir du premier commit du push
+          COMMIT_MSG=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[0].message')
+          COMMIT_TYPE=$(echo "$COMMIT_MSG" | grep -Eo '^(feat|fix|docs|style|refactor|perf|test|chore)' || echo "update")
+
+          # Couleur en fonction du type de commit
+          case "$COMMIT_TYPE" in
+            feat) COLOR=3066993 ;;    # Vert
+            fix) COLOR=15158332 ;;    # Rouge
+            docs) COLOR=10181046 ;;   # Bleu clair
+            *) COLOR=3447003 ;;       # Gris
+          esac
+
+          # Nombre total de commits du dépôt
+          TOTAL_COMMITS=$(git rev-list --count HEAD)
+
+          # Liste formatée de TOUS les commits du push
+          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[] | "• **\(.id[0:7])** — \(.message)"' | paste -sd "\\n" -)
+
+          # Sortie des variables pour les étapes suivantes
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "color=$COLOR" >> $GITHUB_OUTPUT
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL_COMMITS" >> $GITHUB_OUTPUT
+          echo "type=$COMMIT_TYPE" >> $GITHUB_OUTPUT
+          echo "short=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "timestamp=$TS" >> $GITHUB_OUTPUT
+          echo "role=$ROLE_ID" >> $GITHUB_OUTPUT
+
+      # 2. Génération automatique du CHANGELOG.md
+      - name: Generate Changelog
+        run: |
+          cat > CHANGELOG.md <<EOF
+          ## Version ${{ steps.prep.outputs.version }}
+          Date : <t:${{ steps.prep.outputs.timestamp }}:f>
+
+          ### Commits inclus :
+          ${{ steps.prep.outputs.commits }}
+          EOF
+
+      # 3. Message personnalisé si la branche est main
+      - name: Custom Message for Main
+        if: ${{ steps.prep.outputs.branch == 'main' }}
+        run: |
+          echo "🚀 Déploiement en cours sur la branche *main* !" >> $GITHUB_STEP_SUMMARY
+
+      # 4. Envoi de la notification Discord (Push + PR)
+      - name: Send Discord Message
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          AVATAR_URL: "https://avatars.githubusercontent.com/u/XXXXX?s=400"  # Remplace XXXXX par l'ID de ton avatar ou logo
+        run: |
+          cat <<EOF > payload.json
+          {
+            "content": "<@&${{ steps.prep.outputs.role }}>",
+            "embeds": [
+              {
+                "title": "📌 Nouvel événement GitHub sur ${{ steps.prep.outputs.repo }}",
+                "url": "https://github.com/${{ steps.prep.outputs.repo }}",
+                "color": ${{ steps.prep.outputs.color }},
+                "author": {
+                  "name": "${{ steps.prep.outputs.repo }}",
+                  "icon_url": "$AVATAR_URL"
+                },
+                "fields": [
+                  {
+                    "name": "Type de commit",
+                    "value": "\`${{ steps.prep.outputs.type }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Version",
+                    "value": "\`${{ steps.prep.outputs.version }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Total commits",
+                    "value": "\`${{ steps.prep.outputs.total }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Branche",
+                    "value": "\`${{ steps.prep.outputs.branch }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "SHA",
+                    "value": "[\`${{ steps.prep.outputs.short }}\`](https://github.com/${{ steps.prep.outputs.repo }}/commit/${{ steps.prep.outputs.short }})",
+                    "inline": true
+                  },
+                  {
+                    "name": "Changelog",
+                    "value": "${{ steps.prep.outputs.commits }}"
+                  }
+                ],
+                "footer": {
+                  "text": "GitHub Actions • Event | ${{ steps.prep.outputs.branch }} • Aujourd’hui à $(date -u +"%H:%M")"
+                },
+                "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+              }
+            ]
+          }
+          EOF
+
+          # Envoi du message via webhook Discord
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d @payload.json \
+               $DISCORD_WEBHOOK
