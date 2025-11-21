@@ -9,48 +9,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Récupération du repo
+      # Récupération du dépôt
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Récupère tout l'historique pour le nombre total de commits
 
-      ##############################################################
-      # 1. Calcule : commits, type, version, timestamp, etc.
-      ##############################################################
+      # 1. Préparation des données : commits, type, version, timestamp, etc.
       - name: Prepare Data
         id: prep
         run: |
           sudo apt-get update
-          sudo apt-get install jq -y
+          sudo apt-get install -y jq
 
           REPO="${{ github.repository }}"
           BRANCH="${{ github.ref_name }}"
-          ROLE_ID="123456789012345678" # Mets ton rôle
+          ROLE_ID="123456789012345678"  # Remplace par ton rôle Discord
 
           TS=$(date +%s)
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           VERSION="v-$SHORT_SHA"
 
-          # type du commit basé sur le premier commit du push
+          # Extraction du type de commit à partir du premier commit du push
           COMMIT_MSG=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[0].message')
           COMMIT_TYPE=$(echo "$COMMIT_MSG" | grep -Eo '^(feat|fix|docs|style|refactor|perf|test|chore)' || echo "update")
 
+          # Couleur en fonction du type de commit
           case "$COMMIT_TYPE" in
-            feat) COLOR=3066993 ;;
-            fix) COLOR=15158332 ;;
-            docs) COLOR=10181046 ;;
-            *) COLOR=3447003 ;;
+            feat) COLOR=3066993 ;;    # Vert
+            fix) COLOR=15158332 ;;    # Rouge
+            docs) COLOR=10181046 ;;   # Bleu clair
+            *) COLOR=3447003 ;;       # Gris
           esac
 
-          # Nombre total de commits du repo
+          # Nombre total de commits du dépôt
           TOTAL_COMMITS=$(git rev-list --count HEAD)
 
-          # Liste propre de TOUS les commits du push
-          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[] | "• **\(.id[0:7])** — \(.message)"' | sed ':a;N;$!ba;s/\n/\\n/g')
+          # Liste formatée de TOUS les commits du push
+          COMMITS=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[] | "• **\(.id[0:7])** — \(.message)"' | paste -sd "\\n" -)
 
+          # Sortie des variables pour les étapes suivantes
           echo "repo=$REPO" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
           echo "color=$COLOR" >> $GITHUB_OUTPUT
-          echo "commits=$COMMITS" >> $GITHUB_OUTPUT
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           echo "total=$TOTAL_COMMITS" >> $GITHUB_OUTPUT
           echo "type=$COMMIT_TYPE" >> $GITHUB_OUTPUT
           echo "short=$SHORT_SHA" >> $GITHUB_OUTPUT
@@ -58,39 +62,37 @@ jobs:
           echo "timestamp=$TS" >> $GITHUB_OUTPUT
           echo "role=$ROLE_ID" >> $GITHUB_OUTPUT
 
-      ##############################################################
-      # 12. Génération automatique du CHANGELOG.md
-      ##############################################################
+      # 2. Génération automatique du CHANGELOG.md
       - name: Generate Changelog
         run: |
-          echo "## Version ${{ steps.prep.outputs.version }}" > CHANGELOG.md
-          echo "Date : <t:${{ steps.prep.outputs.timestamp }}:f>" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "### Commits inclus :" >> CHANGELOG.md
-          echo -e "${{ steps.prep.outputs.commits }}" >> CHANGELOG.md
+          cat > CHANGELOG.md <<EOF
+          ## Version ${{ steps.prep.outputs.version }}
+          Date : <t:${{ steps.prep.outputs.timestamp }}:f>
 
-      ##############################################################
-      # 9/14. Message spécial si branche = main
-      ##############################################################
+          ### Commits inclus :
+          ${{ steps.prep.outputs.commits }}
+          EOF
+
+      # 3. Message personnalisé si la branche est main
       - name: Custom Message for Main
         if: ${{ steps.prep.outputs.branch == 'main' }}
-        run: echo "🚀 Déploiement en cours sur la branche *main* !"
-
-      ##############################################################
-      # ENVOI DISCORD (Push + PR)
-      ##############################################################
-      - name: Send Discord Message
         run: |
-          # Construction du contenu propre
+          echo "🚀 Déploiement en cours sur la branche *main* !" >> $GITHUB_STEP_SUMMARY
+
+      # 4. Envoi de la notification Discord (Push + PR)
+      - name: Send Discord Message
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
           TITLE="📌 Nouvel événement GitHub sur ${{ steps.prep.outputs.repo }}"
-          DESCRIPTION="**Type :** ${{ steps.prep.outputs.type }}  
-          **Version :** ${{ steps.prep.outputs.version }}  
-          **Total commits :** ${{ steps.prep.outputs.total }}  
-          
+          DESCRIPTION="**Type :** ${{ steps.prep.outputs.type }}
+          **Version :** ${{ steps.prep.outputs.version }}
+          **Total commits :** ${{ steps.prep.outputs.total }}
+
           **Commits inclus :**
           ${{ steps.prep.outputs.commits }}"
 
-          # Embed Discord
+          # Construction du payload pour l'embed Discord
           cat <<EOF > payload.json
           {
             "content": "<@&${{ steps.prep.outputs.role }}>",
@@ -108,7 +110,8 @@ jobs:
           }
           EOF
 
+          # Envoi du message via webhook Discord
           curl -H "Content-Type: application/json" \
                -X POST \
                -d @payload.json \
-               ${{ secrets.DISCORD_WEBHOOK }}
+               $DISCORD_WEBHOOK
