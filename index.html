@@ -96,6 +96,12 @@
                     <span>Mode Grille</span>
                 </button>
 
+                <select id="sortSelect" class="p-2 rounded-lg bg-primary-dark border border-secondary-dark focus:border-accent focus:ring-1 focus:ring-accent text-sm transition" onchange="sortMovies()">
+                    <option value="rating">Trier par Note</option>
+                    <option value="alpha">Trier par Ordre Alphabétique</option>
+                    <option value="date">Trier par Date d'Ajout</option>
+                </select>
+
                 <select id="autoReloadSelect" class="p-2 rounded-lg bg-primary-dark border border-secondary-dark focus:border-accent focus:ring-1 focus:ring-accent text-sm transition" onchange="setupAutoReload()">
                     <option value="0">Rechargement désactivé</option>
                     <option value="30000">Recharger toutes les 30s</option>
@@ -151,6 +157,8 @@
         let moviesData = [];
         let currentViewMode = 'grid';
         let reloadIntervalId = null;
+        let currentSortMode = 'rating';
+        let movieInsertionOrder = [];
 
         const moviesContainer = document.getElementById('moviesContainer');
         const messageArea = document.getElementById('messageArea');
@@ -319,12 +327,17 @@
 
             const results = await Promise.all(tmdbPromises);
             moviesData = results.filter(movie => movie !== null);
+            
+            // Enregistrer l'ordre d'insertion (ordre du fichier films.txt)
+            movieInsertionOrder = moviesData.map((movie, index) => ({
+                id: movie.id,
+                order: index
+            }));
 
             messageArea.innerHTML = '';
 
             if (moviesData.length > 0) {
-                moviesData.sort((a, b) => b.voteAverage - a.voteAverage);
-                renderMovies(moviesData);
+                sortMovies(); // Applique le tri actuel
                 displayTempMessage(`Chargement terminé : ${moviesData.length} films affichés.`, 'success');
             } else if (rawMovies.length > 0) {
                 displayMessage(`Aucun film TMDB n'a pu être chargé. ${rawMovies.length} ID TMDB(s) non trouvés ou erreur API.`, 'error');
@@ -448,11 +461,43 @@
             renderMovies(moviesData);
         }
 
+        function sortMovies() {
+            currentSortMode = document.getElementById('sortSelect').value;
+            
+            let sortedMovies = [...moviesData];
+            
+            switch(currentSortMode) {
+                case 'alpha':
+                    sortedMovies.sort((a, b) => a.title.localeCompare(b.title, 'fr'));
+                    break;
+                case 'date':
+                    // Tri par ordre d'apparition dans le fichier films.txt
+                    sortedMovies.sort((a, b) => {
+                        const orderA = movieInsertionOrder.find(m => m.id === a.id)?.order ?? 999999;
+                        const orderB = movieInsertionOrder.find(m => m.id === b.id)?.order ?? 999999;
+                        return orderA - orderB;
+                    });
+                    break;
+                case 'rating':
+                default:
+                    sortedMovies.sort((a, b) => b.voteAverage - a.voteAverage);
+                    break;
+            }
+            
+            renderMovies(sortedMovies);
+        }
+
         function filterMovies(query) {
-            const lowerCaseQuery = query.toLowerCase().trim();
-            const filteredMovies = moviesData.filter(movie => 
-                movie.title.toLowerCase().includes(lowerCaseQuery)
-            );
+            const lowerCaseQuery = query.toLowerCase().trim()
+                .replace(/[-_]/g, ' ') // Remplace tirets et underscores par espaces
+                .replace(/\s+/g, ' '); // Normalise les espaces multiples
+            
+            const filteredMovies = moviesData.filter(movie => {
+                const normalizedTitle = movie.title.toLowerCase()
+                    .replace(/[-_]/g, ' ')
+                    .replace(/\s+/g, ' ');
+                return normalizedTitle.includes(lowerCaseQuery);
+            });
             renderMovies(filteredMovies);
         }
 
