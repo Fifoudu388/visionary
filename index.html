@@ -78,6 +78,32 @@
         ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
     </style>
+    <script>
+    (function() {
+        var ph = window.posthog = window.posthog || [];
+
+        ph._i = [];
+        ph.init = function(apiKey, config) {
+            ph.apiKey = apiKey;
+            ph.config = config;
+
+            var script = document.createElement("script");
+            script.async = true;
+            script.src = "https://cdn.posthog.com/posthog.js";
+            document.head.appendChild(script);
+        };
+
+        ph.capture = function() {
+            ph._i.push(["capture"].concat(Array.from(arguments)));
+        };
+
+        ph.init("phc_d37GZTIHfAUgHbsLqUNypv71jOb23WvlTqIttNP0DmF", {
+            api_host: "https://app.posthog.com"
+        });
+    })();
+    </script>
+
+
 </head>
 <body class="font-sans">
 
